@@ -5,7 +5,7 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/Counters.sol";
 
 abstract contract Urna is Ownable {
-    
+    using Counters for Counters.Counter;
     enum ElectionState { NotStarted, Registering, Voting, Ended }
     ElectionState public currentElectionState;
 
@@ -30,21 +30,25 @@ abstract contract Urna is Ownable {
     uint public votingStartTime;
     uint public votingEndTime;
 
+    constructor() Ownable() {
+        msg.sender;
+    }
+
     event VoterRegistered(address indexed _voterAddress);
     event CandidateAdded(uint indexed _candidateId, string _name);
     event VotingPeriodSet(uint _startTime, uint _endTime);
-
+    event VoteRegistered(address indexed _voter, uint indexed _candidateId);
     // colocar parte do admin para ser o controlador da eleição
 
     function registerVoter(address _voterAddress) public {
         require(_voterAddress != address(0), "Invalid voter address");
-	require(!voters[_voterAddress].isRegistered, "Voter already registered");
+	    require(!voters[_voterAddress].isRegistered, "Voter already registered");
 
-	voters[_voterAddress].walletAddress = _voterAddress;
-	voters[_voterAddress].isRegistered = true;
-	voters[_voterAddress].hasVoted = false;
+	    voters[_voterAddress].walletAddress = _voterAddress;
+	    voters[_voterAddress].isRegistered = true;
+	    voters[_voterAddress].hasVoted = false;
 
-	emit VoterRegistered(_voterAddress);
+	    emit VoterRegistered(_voterAddress);
     }
 
     function addCandidate(string memory _name) public {
@@ -66,5 +70,18 @@ abstract contract Urna is Ownable {
 	    votingEndTime = _endTime;
 
 	    emit VotingPeriodSet(_startTime, _endTime);
+    }
+
+    function RegisterVote(address _voter, uint _candidateId) public {
+        require(votingStartTime != 0 && votingEndTime != 0, "Voting period not set");
+        require(block.timestamp >= votingStartTime && block.timestamp <= votingEndTime, "Voting is not active");
+        require(voters[_voter].isRegistered, "Voter not registered");
+        require(!voters[_voter].hasVoted, "Voter has already voted");
+        require(candidates[_candidateId].id != 0, "Invalid candidate");
+
+        voters[_voter].hasVoted = true;
+        candidates[_candidateId].voteCount++;
+
+        emit VoteRegistered(_voter, _candidateId);
     }
 }
