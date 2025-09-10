@@ -23,4 +23,16 @@ contract Eleicao is Urna {
         emit Voted(msg.sender, _candidateId);
     }
 
+    function getTotalCandidates() public view returns (uint) {
+        require(currentElectionState==ElectionState.Ended, "Eleicao nao acabou");
+        
+        return candidateIds.length;
+    }
+    function getVotesCount(uint _candidateId) public view returns (uint) {
+        require(currentElectionState==ElectionState.Ended, "Eleicao nao acabou");
+        require(candidates[_candidateId].id != 0, "Candidato invalido");
+        
+        return candidates[_candidateId].voteCount;
+    }
+
 }
