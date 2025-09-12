@@ -8,9 +8,13 @@ contract Eleicao is Urna {
     event Voted(address indexed voter, uint indexed candidateId);
 
     modifier duringVoting() {
-        require(currentElectionState == ElectionState.Voting, "Votacao inativa");
         require(
-            block.timestamp >= votingStartTime && block.timestamp < votingEndTime,
+            currentElectionState == ElectionState.Voting,
+            "Votacao inativa"
+        );
+        require(
+            block.timestamp >= votingStartTime &&
+                block.timestamp < votingEndTime,
             "Fora do periodo de votacao"
         );
         _;
@@ -45,18 +49,17 @@ contract Eleicao is Urna {
         onlyOwner
         whenState(ElectionState.NotStarted)
     {
-        require(votingStartTime != 0 && votingEndTime != 0, "Periodo nao definido");
+        require(
+            votingStartTime != 0 && votingEndTime != 0,
+            "Periodo nao definido"
+        );
         require(block.timestamp >= votingStartTime, "Ainda nao comecou");
         require(block.timestamp < votingEndTime, "Periodo expirado");
 
         _setState(ElectionState.Voting);
     }
 
-    function closeVoting()
-        external
-        onlyOwner
-        whenState(ElectionState.Voting)
-    {
+    function closeVoting() external onlyOwner whenState(ElectionState.Voting) {
         require(block.timestamp >= votingEndTime, "Aguarde o fim");
         _setState(ElectionState.Ended);
     }
@@ -101,5 +104,24 @@ contract Eleicao is Urna {
         }
         Candidate storage c = candidates[bestId];
         return (c.id, c.name, c.voteCount);
+    }
+
+    function getTotalCandidates() public view returns (uint) {
+        require(
+            currentElectionState == ElectionState.Ended,
+            "Eleicao nao acabou"
+        );
+
+        return candidateIds.length;
+    }
+
+    function getVotesCount(uint _candidateId) public view returns (uint) {
+        require(
+            currentElectionState == ElectionState.Ended,
+            "Eleicao nao acabou"
+        );
+        require(candidates[_candidateId].id != 0, "Candidato invalido");
+
+        return candidates[_candidateId].voteCount;
     }
 }

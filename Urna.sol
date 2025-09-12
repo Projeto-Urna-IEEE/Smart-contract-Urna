@@ -8,7 +8,12 @@ abstract contract Urna is Ownable {
     // OZ v5: é obrigatório passar o owner ao Ownable
     constructor() Ownable(msg.sender) {}
 
-    enum ElectionState { NotStarted, Registering, Voting, Ended }
+    enum ElectionState {
+        NotStarted,
+        Registering,
+        Voting,
+        Ended
+    }
     ElectionState public currentElectionState;
 
     struct Candidate {
@@ -45,13 +50,14 @@ abstract contract Urna is Ownable {
     }
 
     // ADMIN: registro de votantes durante Registering
-    function registerVoter(address _voterAddress)
-        public
-        onlyOwner
-        whenState(ElectionState.Registering)
-    {
+    function registerVoter(
+        address _voterAddress
+    ) public onlyOwner whenState(ElectionState.Registering) {
         require(_voterAddress != address(0), "Endereco invalido do votante");
-        require(!voters[_voterAddress].isRegistered, "Votante ja foi registrado");
+        require(
+            !voters[_voterAddress].isRegistered,
+            "Votante ja foi registrado"
+        );
 
         voters[_voterAddress] = Voter({
             walletAddress: _voterAddress,
@@ -63,11 +69,9 @@ abstract contract Urna is Ownable {
     }
 
     // ADMIN: adiciona candidatos durante Registering
-    function addCandidate(string memory _name)
-        public
-        onlyOwner
-        whenState(ElectionState.Registering)
-    {
+    function addCandidate(
+        string memory _name
+    ) public onlyOwner whenState(ElectionState.Registering) {
         require(bytes(_name).length > 0, "Nome do candidato vazio");
 
         _nextCandidateId.increment();
@@ -79,11 +83,10 @@ abstract contract Urna is Ownable {
     }
 
     // ADMIN: definir periodo antes de abrir a votacao
-    function setVotingPeriod(uint _startTime, uint _endTime)
-        public
-        onlyOwner
-        whenState(ElectionState.NotStarted)
-    {
+    function setVotingPeriod(
+        uint _startTime,
+        uint _endTime
+    ) public onlyOwner whenState(ElectionState.NotStarted) {
         require(_startTime >= block.timestamp, "Start must be in the future");
         require(_endTime > _startTime, "End must be after start");
 
@@ -94,5 +97,7 @@ abstract contract Urna is Ownable {
     }
 
     // Helpers de leitura
-    function candidatesCount() public view returns (uint) { return candidateIds.length; }
+    function candidatesCount() public view returns (uint) {
+        return candidateIds.length;
+    }
 }
