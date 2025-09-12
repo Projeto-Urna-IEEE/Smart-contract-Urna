@@ -1,27 +1,36 @@
 // SPDX-License-Identifier: GPL-3.0
-pragma solidity ^0.8.0;
+pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/Counters.sol";
 
 abstract contract Urna is Ownable {
-    
-    enum ElectionState { NotStarted, Registering, Voting, Ended }
+    // OZ v5: é obrigatório passar o owner ao Ownable
+    constructor() Ownable(msg.sender) {}
+
+    enum ElectionState {
+        NotStarted,
+        Registering,
+        Voting,
+        Ended
+    }
     ElectionState public currentElectionState;
 
     struct Candidate {
         uint id;
-	    string name;
-	    uint voteCount;
+        string name;
+        uint voteCount;
     }
 
     struct Voter {
         address walletAddress;
-	    bool isRegistered;
-	    bool hasVoted;  
+        bool isRegistered;
+        bool hasVoted;
     }
 
+    using Counters for Counters.Counter;
     Counters.Counter private _nextCandidateId;
+
     mapping(uint => Candidate) public candidates;
     uint[] public candidateIds;
 
@@ -34,37 +43,61 @@ abstract contract Urna is Ownable {
     event CandidateAdded(uint indexed _candidateId, string _name);
     event VotingPeriodSet(uint _startTime, uint _endTime);
 
-    // colocar parte do admin para ser o controlador da eleição
-
-    function registerVoter(address _voterAddress) public {
-        require(_voterAddress != address(0), "Invalid voter address");
-	require(!voters[_voterAddress].isRegistered, "Voter already registered");
-
-	voters[_voterAddress].walletAddress = _voterAddress;
-	voters[_voterAddress].isRegistered = true;
-	voters[_voterAddress].hasVoted = false;
-
-	emit VoterRegistered(_voterAddress);
+    // Helper de estado
+    modifier whenState(ElectionState s) {
+        require(currentElectionState == s, "Estado invalido");
+        _;
     }
 
-    function addCandidate(string memory _name) public {
-        require(bytes(_name).length > 0, "Candidate's name cannot be empty");
+    // ADMIN: registro de votantes durante Registering
+    function registerVoter(
+        address _voterAddress
+    ) public onlyOwner whenState(ElectionState.Registering) {
+        require(_voterAddress != address(0), "Endereco invalido do votante");
+        require(
+            !voters[_voterAddress].isRegistered,
+            "Votante ja foi registrado"
+        );
+
+        voters[_voterAddress] = Voter({
+            walletAddress: _voterAddress,
+            isRegistered: true,
+            hasVoted: false
+        });
+
+        emit VoterRegistered(_voterAddress);
+    }
+
+    // ADMIN: adiciona candidatos durante Registering
+    function addCandidate(
+        string memory _name
+    ) public onlyOwner whenState(ElectionState.Registering) {
+        require(bytes(_name).length > 0, "Nome do candidato vazio");
 
         _nextCandidateId.increment();
-	    uint newId = _nextCandidateId.current();
-	    candidates[newId] = Candidate(newId, _name, 0);
-	    candidateIds.push(newId);
+        uint newId = _nextCandidateId.current();
+        candidates[newId] = Candidate(newId, _name, 0);
+        candidateIds.push(newId);
 
-	    emit CandidateAdded(newId, _name);
+        emit CandidateAdded(newId, _name);
     }
 
-    function setVotingPeriod(uint _startTime, uint _endTime) public {
-        require(_startTime > block.timestamp, "Initial time must not be a future date");
-	    require(_endTime > _startTime, "End time must not be less than the initial time");
+    // ADMIN: definir periodo antes de abrir a votacao
+    function setVotingPeriod(
+        uint _startTime,
+        uint _endTime
+    ) public onlyOwner whenState(ElectionState.NotStarted) {
+        require(_startTime >= block.timestamp, "Start must be in the future");
+        require(_endTime > _startTime, "End must be after start");
 
-	    votingStartTime = _startTime;
-	    votingEndTime = _endTime;
+        votingStartTime = _startTime;
+        votingEndTime = _endTime;
 
-	    emit VotingPeriodSet(_startTime, _endTime);
+        emit VotingPeriodSet(_startTime, _endTime);
+    }
+
+    // Helpers de leitura
+    function candidatesCount() public view returns (uint) {
+        return candidateIds.length;
     }
 }
